@@ -3,6 +3,10 @@ pragma solidity 0.8.26;
 
 import {BaseTest} from "./BaseTest.sol";
 import {Escrow} from "../src/Escrow.sol";
+import {E2_ValueCap} from "../src/policies/E2_ValueCap.sol";
+import {E3_Expiry} from "../src/policies/E3_Expiry.sol";
+import {E3_Revocation} from "../src/policies/E3_Revocation.sol";
+import {E3_CumulativeDailyCap} from "../src/policies/E3_CumulativeDailyCap.sol";
 
 /// @notice Section B unit tests. Each test maps to one row of the B.3 checklist.
 /// @dev A realistic base timestamp is set in setUp so `block.timestamp / 1 days`
@@ -66,7 +70,8 @@ contract EscrowBasicTest is BaseTest {
 
     function test_Settle_RevertWhen_ExceedsPerRequest() public {
         _fundAndSetPolicy();
-        vm.expectRevert(Escrow.ExceedsPerRequest.selector);
+        // Revert now originates from the integrated E2_ValueCap library (C.6).
+        vm.expectRevert(E2_ValueCap.ExceedsValueCap.selector);
         escrow.settle(AGENT, payable(PROVIDER), 1 ether + 1); // > maxPerRequest
     }
 
@@ -76,7 +81,7 @@ contract EscrowBasicTest is BaseTest {
         _fundAndSetPolicy();
         escrow.settle(AGENT, payable(PROVIDER), 1 ether); // cum = 1.0
         escrow.settle(AGENT, payable(PROVIDER), 1 ether); // cum = 2.0 == cap, ok
-        vm.expectRevert(Escrow.ExceedsDailyCap.selector);
+        vm.expectRevert(E3_CumulativeDailyCap.ExceedsDailyCap.selector);
         escrow.settle(AGENT, payable(PROVIDER), 0.5 ether); // cum would be 2.5 > 2
     }
 
@@ -85,7 +90,7 @@ contract EscrowBasicTest is BaseTest {
     function test_Settle_RevertWhen_Expired() public {
         _fundAndSetPolicy();
         vm.warp(block.timestamp + 31 days); // past validUntil (= T0 + 30 days)
-        vm.expectRevert(Escrow.PolicyExpired.selector);
+        vm.expectRevert(E3_Expiry.Expired.selector);
         escrow.settle(AGENT, payable(PROVIDER), 0.5 ether);
     }
 
@@ -95,7 +100,7 @@ contract EscrowBasicTest is BaseTest {
         _fundAndSetPolicy();
         vm.prank(USER);
         escrow.revokePolicy(AGENT);
-        vm.expectRevert(Escrow.PolicyInactive.selector);
+        vm.expectRevert(E3_Revocation.PolicyInactive.selector);
         escrow.settle(AGENT, payable(PROVIDER), 0.5 ether);
     }
 
@@ -124,7 +129,7 @@ contract EscrowBasicTest is BaseTest {
         assertEq(day1Spent, 2 ether, "day1 spent at cap");
 
         // Same day: one more wei over the cap must revert.
-        vm.expectRevert(Escrow.ExceedsDailyCap.selector);
+        vm.expectRevert(E3_CumulativeDailyCap.ExceedsDailyCap.selector);
         escrow.settle(AGENT, payable(PROVIDER), 0.5 ether);
 
         // Cross a day boundary -> counter resets.
