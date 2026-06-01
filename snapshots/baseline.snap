@@ -1,0 +1,8 @@
+EscrowBasicTest:test_DailyCounter_ResetsOnNewDay() (gas: 214284)
+EscrowBasicTest:test_HappyPath_SettleWithinCap() (gas: 190658)
+EscrowBasicTest:test_SetPolicy_RevertWhen_NotUser() (gas: 9472)
+EscrowBasicTest:test_Settle_RevertWhen_ExceedsDailyCap() (gas: 200584)
+EscrowBasicTest:test_Settle_RevertWhen_ExceedsPerRequest() (gas: 130091)
+EscrowBasicTest:test_Settle_RevertWhen_Expired() (gas: 130590)
+EscrowBasicTest:test_Settle_RevertWhen_InsufficientBalance() (gas: 132887)
+EscrowBasicTest:test_Settle_RevertWhen_Revoked() (gas: 111660)

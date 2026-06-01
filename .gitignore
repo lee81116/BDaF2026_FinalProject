@@ -1,0 +1,10 @@
+# Foundry
+out/
+cache/
+broadcast/
+
+# Docs build
+docs/book/
+
+# Env
+.env
