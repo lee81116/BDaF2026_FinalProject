@@ -59,3 +59,30 @@ Notes:
   that `bytes4` does not pay.
 - All numbers reproducible with `make snap`; `current.snap` is committed
   alongside `gas-results.md` per checkpoint.
+
+## Checkpoint D
+
+- [x] All eight policy modules have measured pass and revert gas
+  - E2: ValueCap, TokenAmountCap, ApprovalCap (3 × pass/revert)
+  - E1: TargetAllowlist, SelectorAllowlist (2 × pass/revert)
+  - E3: Expiry, Revocation, CumulativeDailyCap (3 × pass/revert)
+- [x] Stateful checks have both cold and warm numbers
+  - E1 × 2: cold + warm (pass and revert)
+  - E3 Expiry, Revocation: cold + warm (pass and revert)
+  - E3 CumulativeDailyCap: cold RO + three SSTORE classes (SET, RESET, dirty)
+- [x] Every number explained to within ~100 gas
+  - Each row's "Opcode account" column accounts for the gas at the EVM-cost
+    level. The largest unexplained residual is ~46 gas (SSTORE prep glue in
+    the cumulative-cap RW paths) — well under 100.
+- [x] `docs/gas-results.md` exists and is sortable
+  - Single Markdown table, columns: Check | Level | Path | Storage | Gas |
+    Opcode account. Sorts by any column.
+
+## Reproduction
+
+- Toolchain: forge 1.7.1 (4072e487) · solc 0.8.26 · optimizer 200 · via_ir = false.
+- Snapshot of these numbers: `snapshots/current.snap`.
+- Section D commits (in order): `35d8502` (D-1/D-2) → `8c87e1b` (D-3) →
+  `92bf9be` (D-4) → `d24e893` (D-5). This file finalized at commit recorded
+  by the D-6 wrap-up commit.
+- Date: 2026-06-03.
