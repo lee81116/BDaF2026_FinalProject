@@ -1,0 +1,91 @@
+<svg viewBox="0 0 1000 640" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="t d">
+  <title id="t">跨層 r_scope 會破:local-only 強制下的 escape</title>
+  <desc id="d">User 授權 A 上限 2 ETH,A 再轉授 B 2 ETH。A 本地花 1.5、B 本地花 2.0,兩者都沒違反自己的 cap,但單一資金池總流出 3.5 ETH,超過 User 授權的 2 ETH。</desc>
+  <style>
+    .ttl{font:700 26px -apple-system,'Segoe UI',Roboto,'Noto Sans TC',sans-serif;fill:#1f2933}
+    .sub{font:14px -apple-system,'Segoe UI',Roboto,'Noto Sans TC',sans-serif;fill:#5b6b7b}
+    .node{font:700 16px -apple-system,'Segoe UI',Roboto,'Noto Sans TC',sans-serif;fill:#1f2933}
+    .small{font:12px -apple-system,'Segoe UI',Roboto,'Noto Sans TC',sans-serif;fill:#5b6b7b}
+    .albl{font:12px -apple-system,'Segoe UI',Roboto,sans-serif;fill:#3a4a57}
+    .cap{font:13px -apple-system,'Segoe UI',Roboto,'Noto Sans TC',sans-serif;fill:#3a4a57}
+    .tiny{font:10px ui-monospace,'SF Mono',Menlo,monospace;fill:#8a97a3}
+    .meter{font:700 14px -apple-system,'Segoe UI',Roboto,'Noto Sans TC',sans-serif}
+    .barlbl{font:700 13px -apple-system,'Segoe UI',Roboto,'Noto Sans TC',sans-serif;fill:#ffffff}
+    .tick{font:11px ui-monospace,Menlo,monospace;fill:#8a97a3}
+  </style>
+  <rect x="1" y="1" width="998" height="638" rx="16" fill="#ffffff" stroke="#d9e0e6"/>
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#9aa6b2"/>
+    </marker>
+    <pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="8" height="8" fill="#b3273f"/>
+      <line x1="0" y1="0" x2="0" y2="8" stroke="#fbe9ec" stroke-width="2"/>
+    </pattern>
+  </defs>
+
+  <text x="500" y="44" text-anchor="middle" class="ttl">跨層 r_scope 會破:cross-hop escape</text>
+  <text x="500" y="70" text-anchor="middle" class="sub">Section G — local-only 強制下,子授權繞過原始預算</text>
+
+  <!-- delegation chain -->
+  <rect x="80" y="96" width="170" height="62" rx="12" fill="#eef1f4" stroke="#b9c4cd"/>
+  <text x="165" y="124" text-anchor="middle" class="node">User</text>
+  <text x="165" y="145" text-anchor="middle" class="small">root grant</text>
+
+  <rect x="415" y="96" width="170" height="62" rx="12" fill="#e8f0fe" stroke="#2f6fed"/>
+  <text x="500" y="124" text-anchor="middle" class="node">Agent A</text>
+  <text x="500" y="145" text-anchor="middle" class="small">subject of permA</text>
+
+  <rect x="750" y="96" width="170" height="62" rx="12" fill="#e8f0fe" stroke="#2f6fed"/>
+  <text x="835" y="124" text-anchor="middle" class="node">Agent B</text>
+  <text x="835" y="145" text-anchor="middle" class="small">subject of permB</text>
+
+  <path d="M250 127 L413 127" fill="none" stroke="#9aa6b2" stroke-width="2" marker-end="url(#ah)"/>
+  <text x="332" y="118" text-anchor="middle" class="albl">grant cap 2 ETH</text>
+  <path d="M585 127 L748 127" fill="none" stroke="#9aa6b2" stroke-width="2" marker-end="url(#ah)"/>
+  <text x="667" y="118" text-anchor="middle" class="albl">re-grant cap 2 ETH</text>
+
+  <!-- local meters -->
+  <rect x="410" y="180" width="180" height="62" rx="10" fill="#e9f7f0" stroke="#2f9e6f"/>
+  <text x="500" y="203" text-anchor="middle" class="meter" fill="#1f7a55">A 本地 1.5 / 2 ✓</text>
+  <text x="500" y="225" text-anchor="middle" class="small">0.8 + 0.7,未違反 cap</text>
+
+  <rect x="745" y="180" width="180" height="62" rx="10" fill="#e9f7f0" stroke="#2f9e6f"/>
+  <text x="835" y="203" text-anchor="middle" class="meter" fill="#1f7a55">B 本地 2.0 / 2 ✓</text>
+  <text x="835" y="225" text-anchor="middle" class="small">1.0 + 1.0,未違反 cap</text>
+
+  <text x="500" y="234" text-anchor="middle" class="small" opacity="0"> </text>
+
+  <!-- global budget bar -->
+  <text x="120" y="300" class="cap">全域實際:單一資金池 → Provider 的總流出</text>
+
+  <!-- axis ticks 0..4 ETH over x 120..880 (190px/ETH) -->
+  <line x1="120" y1="430" x2="880" y2="430" stroke="#d9e0e6" stroke-width="1"/>
+  <g class="tick" text-anchor="middle">
+    <text x="120" y="448">0</text><text x="310" y="448">1</text><text x="500" y="448">2</text>
+    <text x="690" y="448">3</text><text x="880" y="448">4 ETH</text>
+  </g>
+
+  <!-- authorized bar 2.0 -->
+  <rect x="120" y="322" width="380" height="30" rx="5" fill="#2f9e6f"/>
+  <text x="132" y="342" class="barlbl">授權上限 2.0 ETH</text>
+
+  <!-- drained bar 3.5 (overflow hatched past 2.0 line) -->
+  <rect x="120" y="366" width="380" height="30" rx="5" fill="#d6455d"/>
+  <rect x="500" y="366" width="285" height="30" fill="url(#hatch)"/>
+  <text x="132" y="386" class="barlbl">實際流出 3.5 ETH</text>
+
+  <!-- authorized ceiling line -->
+  <line x1="500" y1="312" x2="500" y2="406" stroke="#1f2933" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <text x="505" y="320" class="tiny" fill="#1f2933">授權上限</text>
+
+  <!-- overspend callout -->
+  <rect x="600" y="368" width="150" height="26" rx="13" fill="#fff" stroke="#b3273f"/>
+  <text x="675" y="386" text-anchor="middle" class="meter" fill="#b3273f">超支 +1.5 ETH ⚠</text>
+
+  <!-- caption -->
+  <text x="500" y="486" text-anchor="middle" class="cap">每個 local cap 都 ✓,但全域總額 3.5 &gt; 授權 2.0 → 本地強制看不見全域,r_scope 跨層失效</text>
+  <text x="500" y="514" text-anchor="middle" class="small">原因:executeLocalOnly 只查當前 permission,不回溯 parent 是否已把預算花在別處</text>
+  <text x="500" y="540" text-anchor="middle" class="tiny">test_LocalOnly_AllowsEscape · 斷言在「總流出量」3.5e18 而非單一 permission 的 local state</text>
+  <text x="500" y="566" text-anchor="middle" class="tiny">control: test_SingleHop_CannotExceedOwnCap — 單跳超過自己 cap 會 revert(證明 escape 是組合性的)</text>
+</svg>
