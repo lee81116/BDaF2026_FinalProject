@@ -5,6 +5,7 @@ broadcast/
 
 # Docs build
 docs/book/
+docs/*.pdf
 
 # Env
 .env

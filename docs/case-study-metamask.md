@@ -61,14 +61,43 @@ Mapping each of our 8 policy modules to the closest enforcer:
 
 ### H4.4 — One-line summary
 
-The MetaMask enforcer set strictly covers our 8 modules (via direct or
-near-direct analogs) and adds **streaming, balance-delta, fee-payment,
-nonce, and calldata-pinning** policies our framework does not model. The
-*shape* of restriction is the same in both systems: each enforcer is a
-small, single-purpose contract that reverts on disallowed execution. The
-big architectural difference is **where state lives** — MetaMask keys
-state by `(DelegationManager, delegationHash)`; our host keys state by
-`(Escrow, policyId)`. This is the load-bearing fact for H5.
+The MetaMask enforcer set strictly covers our 8 original modules (via direct
+or near-direct analogs; see H4.5 for the two modules added after H) and adds
+**streaming, balance-delta, fee-payment, nonce, and calldata-pinning**
+policies our framework does not model. The *shape* of restriction is the same
+in both systems: each enforcer is a small, single-purpose contract that
+reverts on disallowed execution. The big architectural difference is **where
+state lives** — MetaMask keys state by `(DelegationManager, delegationHash)`;
+our host keys state by `(Escrow, policyId)`. This is the load-bearing fact
+for H5.
+
+### H4.5 — Addendum (post-H E3 extensions): two host modules with no enforcer analog
+
+The two modules added after the H sweep reverse the coverage direction — the
+host now measures two policies the framework does not ship:
+
+1. **`E3_SlidingWindowRateLimit` (count-based, two-bucket sliding
+   approximation).** No enforcer implements a *sliding* window: the
+   `NativeToken/ERC20/MultiTokenPeriodTransferEnforcer` family is
+   **fixed-window** (allowance resets at period boundaries), the streaming
+   enforcers are linear-unlock, and `LimitedCallsEnforcer` is a windowless
+   total count. A fixed-window cap admits up to 2× the intended rate across
+   a boundary (cap at the end of period n plus cap at the start of n+1);
+   the two-bucket weighting is the standard production mitigation, and it
+   costs the same SSTORE regimes as the fixed window (host measurement:
+   SET 23,834 / RESET 6,734 / dirty 1,934).
+2. **`E3_DelegationDepth`.** No enforcer bounds delegation-chain depth, and
+   under the v1.3.0 hook interface none *could*: `beforeHook` receives only
+   `(terms, args, mode, executionCalldata, delegationHash, delegator,
+   redeemer)` (`src/interfaces/ICaveatEnforcer.sol:49`) — an enforcer never
+   observes its position in the chain or the chain's length, so a
+   depth-bound caveat is not expressible without DelegationManager changes
+   (`DelegationManager.sol` contains no depth accounting; chains are
+   arbitrary-length arrays). Note the host-side finding cuts the other way
+   too: depth bounds constrain chain *length*, not *budget* — the Section G
+   escape replays at legal depth (`test/delegation/DepthBoundEscape.t.sol`),
+   so MetaMask's hash-keyed shared counter (H5) addresses the part that
+   matters, and a depth bound would be a complement, not a substitute.
 
 ---
 

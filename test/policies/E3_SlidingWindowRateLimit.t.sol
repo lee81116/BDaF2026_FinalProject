@@ -2,6 +2,7 @@
 pragma solidity 0.8.26;
 
 import {BaseTest} from "../BaseTest.sol";
+import {stdError} from "forge-std/Test.sol";
 import {
     E3_SlidingWindowRateLimit,
     E3_SlidingWindowRateLimit_Harness
@@ -144,5 +145,30 @@ contract E3_SlidingWindowRateLimit_Test is BaseTest {
         assertEq(ws, 100, "windowStart set to current window");
         assertEq(prev, 0, "no previous window yet");
         assertEq(curr, 2, "two calls accumulated in the current window");
+    }
+
+    // --- malformed policy parameters fail CLOSED, never open ------------------
+
+    /// `W = 0` is a configuration error (documented precondition `W > 0`). The
+    /// first opcode that touches it is the alignment division `t / W`, which
+    /// panics with 0x12 (division by zero) — the call reverts and no payment
+    /// path can proceed. This pins fail-closed behavior: a malformed window
+    /// can never be an allow-all.
+    function test_ZeroWindow_FailsClosed() public {
+        vm.warp(150);
+        vm.expectRevert(stdError.divisionError);
+        h.checkReadWrite(0, 5);
+    }
+
+    /// Adversarially extreme parameters overflow the weighted-estimate MUL
+    /// (`prev * (W - elapsed)` with prev = uint104 max and W near uint256 max).
+    /// Solidity 0.8 checked arithmetic panics with 0x11 — again fail-closed:
+    /// overflow can never wrap the estimate down below the cap.
+    function test_WeightOverflow_FailsClosed() public {
+        vm.warp(1); // ws = (1 / W) * W = 0 matches fresh windowStart 0...
+        h.setState(uint48(0), uint104(type(uint104).max), 0);
+        // same-window branch keeps prev = uint104 max; W - elapsed ~ 2^256-2.
+        vm.expectRevert(stdError.arithmeticError);
+        h.checkReadOnly(type(uint256).max, 5);
     }
 }
