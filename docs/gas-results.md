@@ -180,3 +180,79 @@ is small relative to the underlying transfer cost once N is large.
 - Run: `forge test --match-path test/batch/BatchCurve.t.sol -vv | grep '^CSV,'`
   reproduces every row of the CSV.
 - Date: 2026-06-03.
+
+---
+
+# E3 family extensions: sliding-window rate limit + delegation depth
+
+Two E3 modules added after the main A–G sweep, measured under the same pinned
+toolchain and the same callee-frame primitive (`vm.lastCallGas().gasTotalUsed`),
+same predict-then-assert discipline (TOL = 2, model fixed on a miss, tolerance
+never widened).
+
+Storage-layout proof (acceptance): `E3_SlidingWindowRateLimit.State` packs into
+exactly one slot —
+`forge inspect src/policies/E3_SlidingWindowRateLimit.sol:E3_SlidingWindowRateLimit_Harness storageLayout`
+reports `state` at slot 0, offset 0, **32 bytes** (uint48 + uint104 + uint104 = 256 bits).
+
+## Results
+
+| Check | Level | Path | Storage | Gas | Opcode account |
+|---|---|---|---|---:|---|
+| E3_SlidingWindowRateLimit | E3 | R+W pass ① SET    | cold  | 23,834 | cold SLOAD 2,100 + 1,734 arith+prep + SSTORE_SET 20,000 (zero→nonzero) |
+| E3_SlidingWindowRateLimit | E3 | R+W pass ② RESET  | cold  |  6,734 | cold SLOAD 2,100 + 1,734 arith+prep + SSTORE_RESET 2,900 (nonzero→nonzero) |
+| E3_SlidingWindowRateLimit | E3 | R+W pass ③ dirty  | dirty |  1,934 | warm SLOAD 100 + 1,734 arith+prep + dirty SSTORE 100. ⚠ same-tx 2nd call — NOT a representative per-tx cost |
+| E3_SlidingWindowRateLimit | E3 | R+W adjacent shift | cold |  6,813 | RESET row + 79 adjacency-branch arith (failed same-window EQ + ADD windowStart+W + EQ + prev:=curr;curr:=0) |
+| E3_SlidingWindowRateLimit | E3 | revert (at cap)   | cold  |  3,437 | cold SLOAD 2,100 + partial arith (no write-back/repack, no SSTORE) + RateLimitExceeded(uint256,uint256) glue (selector + two arg MSTOREs + REVERT) |
+| E3_DelegationDepth | E3 | pass   | — | 284 | dispatch + decode 2 words + 1 GT + STOP — opcode-identical to E2_ValueCap (hypothesis **confirmed**) |
+| E3_DelegationDepth | E3 | revert | — | 350 | E2_ValueCap revert (308) + 42 for the two uint256 args of DepthExceeded (two arg MSTOREs + memory growth to the 0x44 error region) |
+
+## Prediction corrections (golden-rule #2: fix the model, never the tolerance)
+
+**Sliding window — same-window arithmetic.** First opcode model estimated the
+arithmetic delta over the daily cap as ≈ +50 gas, predicting same-window
+RO ≈ 3,004 and hence:
+
+- ~~SET 23,050~~ → **23,834**
+- ~~RESET 5,950~~ → **6,734**
+- ~~dirty 1,150~~ → **1,934**
+- ~~adjacent 5,959~~ → **6,813**
+- ~~revert 3,032~~ → **3,437**
+
+Trace showed the true same-window "arith + SSTORE-prep" term is **1,734**, i.e.
+**+834** over the daily cap's 900. The miss is the cost of three *non-byte-aligned*
+packed fields (uint48 / uint104 / uint104): unlike the daily cap's clean
+uint128/uint128 halves, each field must be masked + shifted out of the slot on
+the read-copy and shifted + OR'd back on write — plus the weighted estimate's
+SUB+MUL+DIV+SUB+MUL+DIV+ADD chain and the same/adjacent/gap classification. The
+corrected model is **exact, not fitted**:
+
+- `SET − RESET = 23,834 − 6,734 = 17,100 = 20,000 − 2,900` isolates the SSTORE
+  class (SET vs RESET) with everything else held equal.
+- `RESET − dirty = 6,734 − 1,934 = 4,800 = (2,100 + 2,900) − (100 + 100)`
+  isolates the cold-vs-warm SLOAD and RESET-vs-dirty SSTORE.
+- The 1,734 arith+prep term is **provably constant** across SET / RESET / dirty
+  (three independent equations, one value) — the only thing that varies between
+  the three rows is the SSTORE regime, exactly as intended.
+
+**Delegation depth — revert path.** The M2 hypothesis (pass/revert measure
+E2_ValueCap's 284 / 308 exactly) holds on the pass path: `check` is the same
+dispatch + decode-2-words + GT + STOP, measured **284**. The revert path
+**misses** the hypothesis:
+
+- ~~revert 308~~ → **350**
+
+The +42 over the E2 revert is structural, not a model error: `DepthExceeded`
+carries two `uint256` arguments, whereas E2's `ExceedsValueCap()` is
+parameterless. Encoding the two args costs two extra arg MSTOREs plus memory
+growth to the 0x44-byte error region — the parameterless E2 error never pays it.
+The pass path (no error data) is therefore the right place to read the
+"opcode-identical to E2" claim, and it is confirmed to the gas.
+
+## Reproduction
+
+- Toolchain: forge 1.7.1 (4072e487) · solc 0.8.26 · optimizer 200 · via_ir = false.
+- `forge test --match-path test/policies/E3_SlidingWindow_Gas.t.sol -vv`
+- `forge test --match-path test/policies/E3_DelegationDepth_Gas.t.sol -vv`
+- New snapshot entries land in `snapshots/current.snap` via `make snap`.
+- Date: 2026-06-06.
