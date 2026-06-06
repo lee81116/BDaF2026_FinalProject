@@ -48,9 +48,13 @@ contract DepthBoundEscapeTest is BaseTest {
         assertEq(del.depthOf(permB), 2, "second hop is depth 2");
 
         // Third hop would be depth 3 > MAX_DEPTH (2): rejected.
+        // Fetch MAX_DEPTH() BEFORE the prank: a real contract call inside the
+        // expectRevert args would otherwise consume vm.prank, sending the grant
+        // from the test contract and tripping "not parent holder" first.
+        uint256 maxDepth = del.MAX_DEPTH();
         vm.prank(AGENT_B);
         vm.expectRevert(
-            abi.encodeWithSelector(E3_DelegationDepth.DepthExceeded.selector, 3, del.MAX_DEPTH())
+            abi.encodeWithSelector(E3_DelegationDepth.DepthExceeded.selector, 3, maxDepth)
         );
         del.grant(permB, AGENT_C, 1 ether, ROOT_CAP);
     }
