@@ -16,8 +16,10 @@ policies for autonomous agents. Two axes:
 and cross-hop r_scope break**. A–G demonstrate and quantify this; H (case study)
 checks it against real systems.
 
-Status: **A–G done**; **H planned** (`docs/case-study-impl-plan.md`,
-`docs/case-study-handoff.md`). `forge test` is green (100 tests across A–H + the E3 extensions: sliding-window rate limit and delegation-depth bounds).
+Status: **A–H done** (case studies: Coinbase Spend Permissions, MetaMask
+Delegation Framework; see `docs/case-study.md`), plus the E3 extensions
+(sliding-window rate limit, delegation-depth bounds). `forge test` is green
+(102 tests, incl. fail-closed tests for malformed window parameters).
 
 ## Golden rules (non-negotiable)
 
@@ -92,7 +94,7 @@ deploy the vendored framework **locally** in a Foundry test — no mainnet fork 
 src/      Escrow.sol · policies/ (10 modules) · mocks/ (F) · delegation/ (G) · baselines/ (E)
 test/     BaseTest.sol · policies/ · batch/ · rconf/ · delegation/
 docs/     implementation_plan.md (the working plan) · gas-results.md (D+E numbers)
-          methodology.md (F/G) · case-study-*.md · figures/ (SVGs for slides)
+          case-study-*.md · final-report.md · figures/ (SVGs for slides)
 snapshots/ baseline.snap · current.snap
 ```
 
