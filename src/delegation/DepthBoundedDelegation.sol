@@ -46,7 +46,29 @@ contract DepthBoundedDelegation {
         external
         returns (bytes32 permId)
     {
-        revert("unimplemented");
+        uint256 depth;
+        if (parentId == bytes32(0)) {
+            depth = 1; // root grant from the user
+        } else {
+            Permission storage parent = permissions[parentId];
+            require(parent.active, "inactive parent");
+            require(parent.subject == msg.sender, "not parent holder");
+            depth = parent.depth + 1;
+        }
+        // Enforce the depth bound BEFORE writing any state.
+        E3_DelegationDepth.check(depth, MAX_DEPTH);
+
+        permId = keccak256(abi.encodePacked(msg.sender, subject, nonce++));
+        permissions[permId] = Permission({
+            parentId: parentId,
+            depth: depth,
+            parent: msg.sender,
+            subject: subject,
+            perCallCap: perCallCap,
+            cumulativeCap: cumulativeCap,
+            spent: 0,
+            active: true
+        });
     }
 
     /// @dev LOCAL-ONLY enforcement, identical to `TwoHopDelegation`: validates
@@ -54,14 +76,21 @@ contract DepthBoundedDelegation {
     ///      of `parentId`; no global accounting. This is what lets a legal-depth
     ///      chain still escape the root budget.
     function executeLocalOnly(bytes32 permId, address payable to, uint256 amount) external {
-        revert("unimplemented");
+        Permission storage p = permissions[permId];
+        require(p.subject == msg.sender, "not subject");
+        require(p.active, "inactive");
+        require(amount <= p.perCallCap, "per-call cap");
+        require(p.spent + amount <= p.cumulativeCap, "cumulative cap");
+        p.spent += amount;
+        (bool ok,) = to.call{value: amount}("");
+        require(ok, "transfer failed");
     }
 
     function spentOf(bytes32 permId) external view returns (uint256) {
-        revert("unimplemented");
+        return permissions[permId].spent;
     }
 
     function depthOf(bytes32 permId) external view returns (uint256) {
-        revert("unimplemented");
+        return permissions[permId].depth;
     }
 }

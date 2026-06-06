@@ -39,7 +39,34 @@ library E3_SlidingWindowRateLimit {
         pure
         returns (State memory)
     {
-        revert("unimplemented");
+        uint256 ws = (t / W) * W; // aligned start of the window containing t
+        uint256 elapsed = t - ws; // seconds into the current window
+
+        uint256 prev;
+        uint256 curr;
+        if (s.windowStart == ws) {
+            // same window: buckets unchanged
+            prev = s.prevCount;
+            curr = s.currCount;
+        } else if (s.windowStart + W == ws) {
+            // adjacent window: the old current becomes the new previous
+            prev = s.currCount;
+            curr = 0;
+        } else {
+            // gap of >= 2 windows (or fresh state): both buckets reset
+            prev = 0;
+            curr = 0;
+        }
+
+        // Weighted estimate: the previous window decays linearly across W.
+        uint256 weighted = curr + (prev * (W - elapsed)) / W;
+        uint256 attempted = weighted + 1;
+        if (attempted > maxPerWindow) revert RateLimitExceeded(attempted, maxPerWindow);
+
+        s.windowStart = uint48(ws);
+        s.prevCount = uint104(prev);
+        s.currCount = uint104(curr + 1);
+        return s;
     }
 }
 

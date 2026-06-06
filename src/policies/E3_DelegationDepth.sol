@@ -17,7 +17,7 @@ library E3_DelegationDepth {
     error DepthExceeded(uint256 depth, uint256 maxDepth);
 
     function check(uint256 depth, uint256 maxDepth) internal pure {
-        revert("unimplemented");
+        if (depth > maxDepth) revert DepthExceeded(depth, maxDepth);
     }
 }
 
