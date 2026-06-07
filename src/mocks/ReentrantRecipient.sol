@@ -26,6 +26,19 @@ contract ReentrantRecipient {
     }
 
     receive() external payable {
-        revert("unimplemented");
+        if (hits < MAX_HITS) {
+            hits += 1;
+            // Re-enter settle for the SAME agent, trying to pull another unit.
+            // Escrow.settle has already committed dailyState/balances (CEI), so
+            // this reentrant advance() sees spent == cap and reverts
+            // ExceedsDailyCap. try/catch so the bounded failure does not abort the
+            // outer transfer — we want to observe the bound, not a blanket revert.
+            try escrow.settle(agent, payable(address(this)), 1 ether) {
+            // reached only if the cap did NOT block reentry (it does)
+            }
+                catch {
+                // expected: ExceedsDailyCap — reentrancy is bounded by the cap
+            }
+        }
     }
 }
