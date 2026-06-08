@@ -37,11 +37,15 @@ contract RootAnchoredClosureTest is BaseTest {
     ///     root-anchored counter (1.5 + 2.0 > 2) and reverts. Total drained stays
     ///     at A's legal 1.5; the root counter is unchanged after the revert.
     function test_RootAnchored_BlocksEscape() public {
+        // perCallCap == ROOT_CAP so B's single 2.0-ether attempt clears the
+        // per-call check and reaches the cumulative (root-anchored) walk — that
+        // is the boundary this test is about. (A 1.5-ether per-call cap would
+        // trip "per-call cap" first and hide the closure.)
         vm.prank(USER);
-        bytes32 permA = del.grant(bytes32(0), AGENT_A, 1 ether, ROOT_CAP); // depth 1
+        bytes32 permA = del.grant(bytes32(0), AGENT_A, ROOT_CAP, ROOT_CAP); // depth 1
 
         vm.prank(AGENT_A);
-        bytes32 permB = del.grant(permA, AGENT_B, 1 ether, ROOT_CAP); // depth 2, fresh own cap
+        bytes32 permB = del.grant(permA, AGENT_B, ROOT_CAP, ROOT_CAP); // depth 2, fresh own cap
 
         assertEq(del.depthOf(permA), 1, "permA is a root grant");
         assertEq(del.depthOf(permB), 2, "permB is one hop deeper");
